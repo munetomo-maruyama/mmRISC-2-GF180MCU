@@ -19,7 +19,7 @@ set -euo pipefail
 PDK_ROOT=${1:-/opt/gf180mcu}
 PDK_COMMIT=f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7    # same as the Makefile
 PDK_URL=https://github.com/munetomo-maruyama/mmRISC-2-GF180MCU/releases/download/pdk-gf180mcuD-f6eeac7
-PDK_TAR=gf180mcuD-f6eeac7-subset.tar.zst
+PDK_TAR=gf180mcuD-f6eeac7-subset.tar.gz    # gzip: no zstd/xz in the base image
 
 [ -d "$PDK_ROOT/ciel/gf180mcu/versions/$PDK_COMMIT/gf180mcuD" ] && exit 0
 
@@ -29,6 +29,5 @@ cd "$tmp"
 curl -fsSL -o "$PDK_TAR"        "$PDK_URL/$PDK_TAR"
 curl -fsSL -o "$PDK_TAR.sha256" "$PDK_URL/$PDK_TAR.sha256"
 sha256sum -c --quiet "$PDK_TAR.sha256"
-command -v zstd > /dev/null || apt-get install -y -qq zstd > /dev/null
 mkdir -p "$PDK_ROOT"
-zstd -dc "$PDK_TAR" | tar xf - -C "$PDK_ROOT" || { rm -rf "$PDK_ROOT"; exit 1; }
+tar xzf "$PDK_TAR" -C "$PDK_ROOT" || { rm -rf "$PDK_ROOT"; exit 1; }

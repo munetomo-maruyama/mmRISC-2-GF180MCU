@@ -10,7 +10,9 @@ ring, to see whether it fits a slot (1x1 core area is about 3.05 x 4.24 mm).
 - All tools come from the Nix dev shell: `nix develop -c <command>`
   (LibreLane, Yosys with the slang plugin, OpenROAD, Magic, KLayout, Netgen).
 - PDK: gf180mcuD under `./gf180mcu` (not in git). Locally it holds all
-  libraries; in cloud sessions it is a link to `/opt/gf180mcu`, which has only
+  libraries; in cloud sessions it is a link to `/opt/gf180mcu` (or, in an
+  environment cached before the setup script fetched it, a directory the
+  SessionStart hook fetched; log in `/tmp/fetch-pdk.log`), which has only
   `gf180mcu_fd_pr`, `gf180mcu_fd_sc_mcu7t5v0`, `gf180mcu_fd_io` and
   `gf180mcu_fd_ip_sram`.
 - The owner's local shell exports `PDK`, `PDK_ROOT` (for another project) and
