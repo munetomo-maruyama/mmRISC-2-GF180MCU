@@ -5,16 +5,27 @@
 # Setup script for Claude Code cloud sessions (Ubuntu 24.04, x86_64, root).
 # Put this into the environment's "Setup script" field at claude.ai/code:
 #
-#   curl -fsSL https://raw.githubusercontent.com/munetomo-maruyama/mmRISC-2-GF180MCU/main/scripts/cloud-setup.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/munetomo-maruyama/mmRISC-2-GF180MCU/main/scripts/cloud-setup.sh -o /tmp/cloud-setup.sh && bash /tmp/cloud-setup.sh
+#
+# (Not "curl | bash": when curl is blocked, bash reads nothing and the setup
+# "succeeds" without installing anything.)
 #
 # It installs Nix, fills the Nix store with the LibreLane dev shell of this
 # repository, and fetches the gf180mcuD PDK into /opt/gf180mcu. The
 # SessionStart hook (.claude/hooks/session-start.sh) links that PDK into the
 # checkout and puts nix on PATH.
 #
-# The environment needs "Custom" network access with the default list plus
-#   nix-cache.fossi-foundation.org
-# Without that cache, OpenROAD and friends are built from source (hours).
+# The environment needs "Custom" network access that allows these hosts
+# (the default list covers the GitHub and nixos.org ones, if included):
+#   raw.githubusercontent.com          this script
+#   artifacts.nixos.org, releases.nixos.org, channels.nixos.org,
+#   cache.nixos.org                    Nix installer, nixpkgs, binaries
+#   nix-cache.fossi-foundation.org     LibreLane binaries; without it
+#                                      OpenROAD etc. build from source (hours)
+#   github.com, api.github.com, codeload.github.com
+#                                      the flake inputs
+#   fossi-foundation.github.io, release-assets.githubusercontent.com,
+#   objects.githubusercontent.com      the PDK (ciel)
 #---------------------------------------------------------------------------
 set -euo pipefail
 
