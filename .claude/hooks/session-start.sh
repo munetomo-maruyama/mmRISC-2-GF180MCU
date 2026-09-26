@@ -12,6 +12,10 @@ cd "$CLAUDE_PROJECT_DIR" || exit 0
 # the CPU RTL
 git submodule update --init --recursive || true
 
+# the PDK, if the setup script did not get it (or the environment was cached
+# before it did)
+[ -d /opt/gf180mcu ] || bash scripts/fetch-pdk.sh /opt/gf180mcu > /dev/null 2>&1 || true
+
 # the PDK, where the Makefile expects it (PDK_ROOT = ./gf180mcu)
 if [ -d /opt/gf180mcu ]; then
     [ -e gf180mcu ] || ln -sfn /opt/gf180mcu gf180mcu

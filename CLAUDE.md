@@ -23,7 +23,7 @@ ring, to see whether it fits a slot (1x1 core area is about 3.05 x 4.24 mm).
 
 - Local: aarch64 Ubuntu under Parallels; the checkout is on the Parallels
   shared folder, which is case-insensitive and has 1-second mtimes.
-- Cloud sessions: x86_64, set up by `scripts/cloud-setup.sh` and
+- Cloud sessions: x86_64, set up by `scripts/cloud-setup.sh`, `scripts/fetch-pdk.sh` and
   `.claude/hooks/session-start.sh`. 4 vCPU / 16 GB, so large P&R runs are
   better done locally.
 
