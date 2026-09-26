@@ -1,8 +1,9 @@
-# CPU_TOP 面積見積もり（合成のみ、GF180MCU）
+# CPU_TOP / CPU_CORE 面積見積もり（合成のみ、GF180MCU）
 
 mmRISC-2 の `CPU_TOP` を GF180MCU で論理合成だけ行い、パッドリングなしのコアが
 wafer.space 1x1 スロットのコア領域（`librelane/slots/slot_1x1.yaml` の CORE_AREA
 3048 x 4238 um = **12.92 mm²**）に入る見込みがあるかを見積もった。P&R はしていない。
+あわせて、レイアウト試行の準備として `CPU_CORE` 以下（キャッシュなし）だけも合成した（「CPU_CORE 単体」の節）。
 
 - RTL: mmRISC-2 **2f59109**（サブモジュール、無変更）
 - 合成: Yosys 0.66 + yosys-slang（Nix dev shell）。スクリプトは `core_synth/`
@@ -255,6 +256,79 @@ valid/dirty 部は `core_synth/est/TAG_VALID_DIRTY.sv`（CACHE_TAG_ARRAY の val
    ASIC の FF には初期値がないので、これらがリセットなしで正しく始まるか見直す必要がある。
 4. FPU を外すパラメータ、DBG_HART_STUB の置き換え（削る候補の表を参照）。
 
+## CPU_CORE 単体（キャッシュなし）
+
+パッドフレームに入れることはいったん目標から外し、`CPU_CORE` 以下だけでレイアウトまで試すための事前確認として、
+`CPU_CORE` をトップにして合成した（`run_synth.sh core` / `core_trim`、ファイルは `core_synth/files_core.f`）。
+キャッシュ、CPU_DBG、CLINT/PLIC、バス調停は含まない。SRAM マクロは使わない（全部標準セル）。
+合成条件は CPU_TOP と同じ（tt_025C_5v00、階層保持、タイミング制約なし）。
+
+| 構成 | 面積 [mm²] | セル数 | FF 数 | うち FF の面積 [mm²] |
+|---|---:|---:|---:|---:|
+| core（RTL の既定値: BTB 64, ITLB/DTLB 8, PMP 8, PQ 16） | **4.232** | 150,149 | 21,429 | 1.50 |
+| core_trim（BTB 16, ITLB/DTLB 4, PMP 4, PQ 8） | **3.244** | 120,826 | 14,280 | 1.04 |
+
+CPU_TOP の中で合成したときの CPU_CORE（4.244 mm²）とほぼ同じ。所要時間は 1 構成あたり約 8 分、ピークメモリ約 1.5 GB。
+
+### グループ別
+
+| グループ | core 面積 | FF | core_trim 面積 | FF |
+|---|---:|---:|---:|---:|
+| CORE_FPU (FPU) | 0.833 | 2017 | 0.832 | 2017 |
+| CORE_MMU (TLB/PMP/PTW) | 0.415 | 1862 | 0.233 | 1076 |
+| CORE_IFU (BTB を含む) | 1.189 | 9288 | 0.413 | 3165 |
+| CORE_MDU (乗除算) | 0.593 | 849 | 0.593 | 849 |
+| CORE_FRF (FP レジスタ) | 0.366 | 2048 | 0.366 | 2048 |
+| CORE_RF (整数レジスタ) | 0.288 | 1984 | 0.288 | 1984 |
+| CORE_CSR | 0.176 | 1306 | 0.147 | 1066 |
+| CPU_CORE 直下 + DEC/DECOMP/EXU/LSU | 0.373 | 2075 | 0.373 | 2075 |
+| **合計** | **4.232** | 21429 | **3.244** | 14280 |
+
+### インスタンス別（core）
+
+| インスタンス | モジュール | 面積 (配下含む) [mm2] | 自身の面積 [mm2] | セル数 (配下含む) | FF 数 (配下含む) |
+|---|---|---:|---:|---:|---:|
+| CPU_CORE | CPU_CORE | 4.2321 | 0.2947 | 150149 | 21429 |
+| &nbsp;&nbsp;u_csr | CORE_CSR | 0.1759 | 0.1759 | 4805 | 1306 |
+| &nbsp;&nbsp;u_dec | CORE_DEC | 0.0054 | 0.0054 | 353 | 0 |
+| &nbsp;&nbsp;u_decomp | CORE_DECOMP | 0.0035 | 0.0035 | 219 | 0 |
+| &nbsp;&nbsp;u_exu | CORE_EXU | 0.0628 | 0.0628 | 3470 | 0 |
+| &nbsp;&nbsp;u_fpu | CORE_FPU | 0.8328 | 0.7909 | 39226 | 2017 |
+| &nbsp;&nbsp;&nbsp;&nbsp;u_round | FPU_ROUND | 0.0419 | 0.0419 | 1913 | 84 |
+| &nbsp;&nbsp;u_frf | CORE_FRF | 0.3655 | 0.3655 | 7950 | 2048 |
+| &nbsp;&nbsp;u_ifu | CORE_IFU | 1.1887 | 0.1825 | 31638 | 9288 |
+| &nbsp;&nbsp;&nbsp;&nbsp;u_btb | CORE_BTB | 1.0061 | 1.0061 | 25738 | 8000 |
+| &nbsp;&nbsp;u_lsu | CORE_LSU | 0.0063 | 0.0063 | 213 | 44 |
+| &nbsp;&nbsp;u_mdu | CORE_MDU | 0.5933 | 0.5933 | 29607 | 849 |
+| &nbsp;&nbsp;u_mmu | CORE_MMU | 0.4153 | 0.0270 | 15932 | 1862 |
+| &nbsp;&nbsp;&nbsp;&nbsp;u_dtlb | MMU_TLB | 0.1171 | 0.1171 | 3560 | 787 |
+| &nbsp;&nbsp;&nbsp;&nbsp;u_itlb | MMU_TLB | 0.1132 | 0.1132 | 3264 | 787 |
+| &nbsp;&nbsp;&nbsp;&nbsp;u_pmp_d | MMU_PMP | 0.0473 | 0.0473 | 2614 | 0 |
+| &nbsp;&nbsp;&nbsp;&nbsp;u_pmp_i | MMU_PMP | 0.0473 | 0.0473 | 2614 | 0 |
+| &nbsp;&nbsp;&nbsp;&nbsp;u_pmp_w | MMU_PMP | 0.0473 | 0.0473 | 2614 | 0 |
+| &nbsp;&nbsp;&nbsp;&nbsp;u_ptw | MMU_PTW | 0.0163 | 0.0163 | 400 | 131 |
+| &nbsp;&nbsp;u_rf | CORE_RF | 0.2876 | 0.2876 | 8055 | 1984 |
+
+### レイアウト試行に向けて
+
+- **ダイ（コア）サイズの目安**（マクロなし、正方形の場合）:
+
+  | 構成 | 配置率 60% | 配置率 50% | 配置率 40% |
+  |---|---:|---:|---:|
+  | core（4.23 mm²） | 7.05 mm²（2.66 mm 角） | 8.46 mm²（2.91 mm 角） | 10.6 mm²（3.25 mm 角） |
+  | core_trim（3.24 mm²） | 5.41 mm²（2.33 mm 角） | 6.49 mm²（2.55 mm 角） | 8.11 mm²（2.85 mm 角） |
+
+  合成直後の面積なので、P&R でのバッファ挿入、サイズ変更、クロックツリー、タップ/フィルセルの分が増える。
+  最初は配置率 40〜50% で始めて、通ってから詰めるのが無難。
+- **ピン数**: CPU_CORE のポートは 41 本、745 bit。そのうち検証用のトレース出力（`trace_*` 169 bit、`trap_*` 136 bit）が 305 bit ある。
+  レイアウト試行でこれを外すなら、トレースポートを出さないラッパを置けば、それを駆動するだけのロジックは（フラット化して合成すれば）消える。
+  外さない場合でも、2.6 mm 角の周囲（約 10 mm）に 745 本は十分に並ぶ。
+- **マクロなし・FF のみ**: レジスタファイル（RF/FRF）、BTB、TLB はすべて FF になっている（FF 21,429 個、面積の 35%）。
+  レイアウトではこれらの配線混雑が出やすい。
+- **P&R の規模**: 約 15 万セル（core）、12 万セル（core_trim）。CLAUDE.md のとおり、クラウドの VM（4 vCPU / 16 GB）ではなくローカルで回すのがよい規模。
+  まず core_trim で流れを確認するのも手。
+- **LibreLane での合成**: LibreLane のデフォルトの Yosys 合成（`USE_SLANG: True`）で読むときも、`SLANG_ARGUMENTS` に `--allow-use-before-declare` が要る（CORE_FPU の件）。
+
 ## 再現方法
 
 ```sh
@@ -262,6 +336,9 @@ valid/dirty 部は `core_synth/est/TAG_VALID_DIRTY.sv`（CACHE_TAG_ARRAY の val
 nix develop -c core_synth/run_synth.sh default   # 64 sets x 4 ways
 nix develop -c core_synth/run_synth.sh small     # 16 sets x 2 ways
 nix develop -c core_synth/run_synth.sh trim      # small + BTB 16, TLB 4, PMP 4, MSHR/WB 1, PQ 8
+# CPU_CORE 単体（キャッシュなし、1 構成あたり約 8 分）
+nix develop -c core_synth/run_synth.sh core      # RTL の既定値
+nix develop -c core_synth/run_synth.sh core_trim # BTB 16, TLB 4, PMP 4, PQ 8
 # タグまわりの単体合成（数十秒）
 nix develop -c core_synth/run_est.sh
 # SRAM マクロの面積表

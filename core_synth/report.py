@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Area report of CPU_TOP from `stat -json -liberty` (hierarchy kept).
+"""Area report of CPU_TOP or CPU_CORE from `stat -json -liberty` (hierarchy kept).
 
 yosys-slang names every instance's module <MODULE>$<instance path>, so the
 hierarchy is recovered from the names: the inclusive area of an instance is
@@ -15,9 +15,19 @@ import sys
 
 CELL_PREFIX = "gf180mcu_fd_sc_mcu7t5v0__"
 
-# Groups for the summary: (label, instance path prefixes).
+# Groups for the summary, per top module: (label, instance path prefixes).
 # A module is counted in the first group whose prefix matches its path.
-GROUPS = [
+GROUPS_CORE = [
+    ("CORE_FPU (FPU)",              ["CPU_CORE.u_fpu"]),
+    ("CORE_MMU (TLB/PMP/PTW)",      ["CPU_CORE.u_mmu"]),
+    ("CORE_IFU (BTB を含む)",       ["CPU_CORE.u_ifu"]),
+    ("CORE_MDU (乗除算)",           ["CPU_CORE.u_mdu"]),
+    ("CORE_FRF (FP レジスタ)",      ["CPU_CORE.u_frf"]),
+    ("CORE_RF (整数レジスタ)",      ["CPU_CORE.u_rf"]),
+    ("CORE_CSR",                    ["CPU_CORE.u_csr"]),
+    ("CPU_CORE 直下 + DEC/DECOMP/EXU/LSU", ["CPU_CORE"]),
+]
+GROUPS_TOP = [
     ("CORE_FPU (FPU)",              ["CPU_TOP.g_core.u_cpu_core.u_fpu"]),
     ("CORE_MMU (TLB/PMP/PTW)",      ["CPU_TOP.g_core.u_cpu_core.u_mmu"]),
     ("CPU_CORE (FPU/MMU 以外)",     ["CPU_TOP.g_core.u_cpu_core"]),
@@ -80,7 +90,9 @@ def main():
                 a += m["area"]; c += m["cells"]; f += m["ffs"]; l += m["lats"]
         return a, c, f, l
 
-    total_a, total_c, total_f, total_l = incl("CPU_TOP")
+    root = next(p for p in mods if "." not in p)
+    groups = GROUPS_CORE if root == "CPU_CORE" else GROUPS_TOP
+    total_a, total_c, total_f, total_l = incl(root)
 
     out = []
     out.append(f"Total (standard cells only, SRAM arrays blackboxed): "
@@ -90,7 +102,7 @@ def main():
     out.append("| グループ | 面積 [mm2] | 割合 | セル数 | FF 数 |")
     out.append("|---|---:|---:|---:|---:|")
     seen = set()
-    for label, prefixes in GROUPS:
+    for label, prefixes in groups:
         a = c = f = 0
         for p, m in mods.items():
             if p in seen:
