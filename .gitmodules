@@ -1,0 +1,3 @@
+[submodule "mmRISC-2"]
+	path = mmRISC-2
+	url = https://github.com/munetomo-maruyama/mmRISC-2.git

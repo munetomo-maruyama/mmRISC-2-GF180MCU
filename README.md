@@ -1,3 +1,29 @@
+# mmRISC-2 on GF180MCU
+
+Implementation of the [mmRISC-2](https://github.com/munetomo-maruyama/mmRISC-2) CPU
+(RV64GC) in the GF180MCU process for a wafer.space MPW run. The first goal is a
+trial synthesis and place & route of the CPU core logic alone, without the pad
+ring, to find out whether it fits into a slot.
+
+- `mmRISC-2/` : the CPU RTL, as a git submodule
+  (`git clone --recursive`, or `git submodule update --init`).
+- Everything else is the
+  [wafer.space gf180mcu project template](https://github.com/wafer-space/gf180mcu-project-template),
+  kept as the `upstream` remote.
+
+Notes for this setup:
+
+- `flake.nix` skips the cocotb self tests on aarch64-linux; they need
+  `ghdl-bin`, which has no aarch64-linux build and otherwise stops the Nix shell
+  from evaluating.
+- The Makefile takes `PDK` and `PDK_ROOT` from the environment. If your shell
+  exports them for another project, clear them:
+  `env -u PDK -u PDK_ROOT make librelane`.
+
+The rest of this file is the template's own README.
+
+---
+
 # gf180mcu Project Template
 
 Project template for wafer.space MPW runs using the gf180mcu PDK.

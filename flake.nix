@@ -68,7 +68,17 @@
             extra-python-packages =
               ps: with ps; [
                 # Verification
-                cocotb
+                # cocotb's test inputs include ghdl-bin, which has no
+                # aarch64-linux build; skip its tests there.
+                (
+                  if system == "aarch64-linux" then
+                    cocotb.overridePythonAttrs (_: {
+                      nativeCheckInputs = [ ];
+                      doCheck = false;
+                    })
+                  else
+                    cocotb
+                )
 
                 # For KLayout Python DRC runner
                 docopt
