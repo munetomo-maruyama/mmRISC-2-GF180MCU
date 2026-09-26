@@ -3,6 +3,8 @@
 #
 #   core_synth/run_synth.sh default   # I$/D$ 64 sets x 4 ways x 64 B (RTL default)
 #   core_synth/run_synth.sh small     # I$/D$ 16 sets x 2 ways x 64 B
+#   core_synth/run_synth.sh trim      # small + the other size parameters reduced
+#                                     # (BTB 16, ITLB/DTLB 4, PMP 4, MSHR/WB 1, PQ 8)
 #
 # Run inside the Nix dev shell (nix develop -c core_synth/run_synth.sh ...).
 # Output: core_synth/out/<cfg>/{synth.log,stat.txt,stat.json,report.md}
@@ -13,6 +15,7 @@ CFG=${1:-default}
 case "$CFG" in
     default) GPARAMS="" ;;
     small)   GPARAMS="-G IC_SETS=16 -G IC_WAYS=2 -G DC_SETS=16 -G DC_WAYS=2" ;;
+    trim)    GPARAMS="-G IC_SETS=16 -G IC_WAYS=2 -G DC_SETS=16 -G DC_WAYS=2 -G DC_NUM_MSHR=1 -G DC_NUM_WB=1 -G BTB_ENTRIES=16 -G ITLB_ENTRIES=4 -G DTLB_ENTRIES=4 -G PMP_ENTRIES=4 -G PQ_DEPTH=8" ;;
     *) echo "unknown configuration: $CFG" >&2; exit 1 ;;
 esac
 

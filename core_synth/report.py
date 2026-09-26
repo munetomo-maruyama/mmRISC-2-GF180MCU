@@ -4,6 +4,9 @@
 yosys-slang names every instance's module <MODULE>$<instance path>, so the
 hierarchy is recovered from the names: the inclusive area of an instance is
 the sum over every module whose path is the instance path or below it.
+The "area" of a module in `stat -json -top` (Yosys 0.66) already includes
+its submodules, so the own area of a module is its area minus the areas of
+the submodules it instantiates; cell / flip-flop counts are per module.
 
 Usage: report.py out/<cfg>/stat.json  (Markdown on stdout)
 """
@@ -53,6 +56,8 @@ def main():
     with open(sys.argv[1]) as f:
         data = json.load(f)
 
+    hier_area = {n: float(m.get("area", 0.0)) for n, m in data["modules"].items()}
+
     mods = {}
     for name, m in data["modules"].items():
         by_type = m.get("num_cells_by_type", {})
@@ -62,7 +67,10 @@ def main():
         bbs = {t: n for t, n in by_type.items()
                if not t.startswith(CELL_PREFIX) and not t.startswith("$")
                and t.lstrip("\\").split("$", 1)[0] in ("CACHE_DATA_ARRAY", "CACHE_TAG_ARRAY")}
-        mods[path_of(name)] = dict(type=type_of(name), area=float(m.get("area", 0.0)),
+        own = hier_area[name] - sum(n * hier_area.get("\\" + t.lstrip("\\"), 0.0)
+                                    for t, n in by_type.items() if not t.startswith(CELL_PREFIX))
+        own = max(own, 0.0)   # rounding of the subtraction
+        mods[path_of(name)] = dict(type=type_of(name), area=own,
                                    cells=cells, ffs=ffs, lats=lats, bbs=bbs)
 
     def incl(prefix):
