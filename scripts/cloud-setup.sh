@@ -29,7 +29,11 @@
 #---------------------------------------------------------------------------
 set -euo pipefail
 
-REPO=github:munetomo-maruyama/mmRISC-2-GF180MCU
+# git+https, not github: - the github: form asks api.github.com for the
+# head commit, and unauthenticated API calls from the shared cloud IPs hit
+# GitHub's rate limit (403). Locked github: inputs in flake.lock are fetched
+# from github.com/<owner>/<repo>/archive/<rev>.tar.gz, not the API.
+REPO=git+https://github.com/munetomo-maruyama/mmRISC-2-GF180MCU
 PDK_COMMIT=f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7    # same as the Makefile
 PDK_ROOT=/opt/gf180mcu
 export PATH=/nix/var/nix/profiles/default/bin:$PATH
@@ -47,12 +51,16 @@ fi
 # LibreLane dev shell into the Nix store
 nix develop "$REPO" --command true
 
-# PDK: only the libraries the flow uses (all of them is ~4 GB)
+# PDK: only the libraries the flow uses (all of them is ~4 GB). The tarballs
+# are GitHub release assets of another repository, which the cloud GitHub
+# proxy may refuse; do not fail the session over it; the SessionStart hook
+# reports a missing PDK.
 if [ ! -d "$PDK_ROOT/ciel/gf180mcu/versions/$PDK_COMMIT/gf180mcuD" ]; then
     nix develop "$REPO" --command \
         ciel enable "$PDK_COMMIT" --pdk-root "$PDK_ROOT" --pdk-family gf180mcu \
             -l gf180mcu_fd_pr \
             -l gf180mcu_fd_sc_mcu7t5v0 \
             -l gf180mcu_fd_io \
-            -l gf180mcu_fd_ip_sram
+            -l gf180mcu_fd_ip_sram \
+    || { echo "WARNING: PDK download failed"; rm -rf "$PDK_ROOT"; }
 fi
