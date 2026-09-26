@@ -16,9 +16,11 @@ Notes for this setup:
 - `flake.nix` skips the cocotb self tests on aarch64-linux; they need
   `ghdl-bin`, which has no aarch64-linux build and otherwise stops the Nix shell
   from evaluating.
-- The Makefile takes `PDK` and `PDK_ROOT` from the environment. If your shell
-  exports them for another project, clear them:
-  `env -u PDK -u PDK_ROOT make librelane`.
+- The Makefile takes `PDK` and `PDK_ROOT` from the environment, and a
+  `LD_LIBRARY_PATH` pointing at another KLayout build breaks the KLayout Python
+  module in the Nix shell (`libgit2.so.1.7: cannot open shared object file`).
+  If your shell exports any of them, clear them:
+  `nix develop -c env -u PDK -u PDK_ROOT -u LD_LIBRARY_PATH make librelane`.
 
 The rest of this file is the template's own README.
 

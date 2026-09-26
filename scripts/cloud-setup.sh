@@ -1,0 +1,47 @@
+#!/bin/bash
+#---------------------------------------------------------------------------
+# cloud-setup.sh
+#
+# Setup script for Claude Code cloud sessions (Ubuntu 24.04, x86_64, root).
+# Put this into the environment's "Setup script" field at claude.ai/code:
+#
+#   curl -fsSL https://raw.githubusercontent.com/munetomo-maruyama/mmRISC-2-GF180MCU/main/scripts/cloud-setup.sh | bash
+#
+# It installs Nix, fills the Nix store with the LibreLane dev shell of this
+# repository, and fetches the gf180mcuD PDK into /opt/gf180mcu. The
+# SessionStart hook (.claude/hooks/session-start.sh) links that PDK into the
+# checkout and puts nix on PATH.
+#
+# The environment needs "Custom" network access with the default list plus
+#   nix-cache.fossi-foundation.org
+# Without that cache, OpenROAD and friends are built from source (hours).
+#---------------------------------------------------------------------------
+set -euo pipefail
+
+REPO=github:munetomo-maruyama/mmRISC-2-GF180MCU
+PDK_COMMIT=f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7    # same as the Makefile
+PDK_ROOT=/opt/gf180mcu
+export PATH=/nix/var/nix/profiles/default/bin:$PATH
+
+# Nix, without a daemon (no systemd in the VM)
+if ! command -v nix > /dev/null; then
+    curl --proto '=https' --tlsv1.2 -fsSL https://artifacts.nixos.org/nix-installer \
+    | sh -s -- install linux --init none --no-confirm --extra-conf "
+        extra-substituters = https://nix-cache.fossi-foundation.org
+        extra-trusted-public-keys = nix-cache.fossi-foundation.org:3+K59iFwXqKsL7BNu6Guy0v+uTlwsxYQxjspXzqLYQs=
+        extra-experimental-features = nix-command flakes
+    "
+fi
+
+# LibreLane dev shell into the Nix store
+nix develop "$REPO" --command true
+
+# PDK: only the libraries the flow uses (all of them is ~4 GB)
+if [ ! -d "$PDK_ROOT/ciel/gf180mcu/versions/$PDK_COMMIT/gf180mcuD" ]; then
+    nix develop "$REPO" --command \
+        ciel enable "$PDK_COMMIT" --pdk-root "$PDK_ROOT" --pdk-family gf180mcu \
+            -l gf180mcu_fd_pr \
+            -l gf180mcu_fd_sc_mcu7t5v0 \
+            -l gf180mcu_fd_io \
+            -l gf180mcu_fd_ip_sram
+fi
