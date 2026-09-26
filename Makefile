@@ -122,6 +122,27 @@ librelane-padring: clone-pdk defines ## Only create the padring
 	python3 scripts/padring.py ${LIBRELANE_CONFIGS} ${LIBRELANE_OPTS}
 .PHONY: librelane-padring
 
+# Layout trial of CPU_CORE alone (no caches, no pad ring), core_pnr/config.yaml.
+# Runs go to core_pnr/runs/.
+CORE_PNR_CONFIG = core_pnr/config.yaml
+CORE_PNR_OPTS = --pdk ${PDK} --pdk-root ${PDK_ROOT} --manual-pdk --scl ${SCL}
+
+core-pnr: clone-pdk ## CPU_CORE alone: full LibreLane flow (synthesis, PnR, verification)
+	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS}
+.PHONY: core-pnr
+
+core-pnr-synth: clone-pdk ## CPU_CORE alone: synthesis and pre-PnR STA only
+	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS} --to OpenROAD.STAPrePNR
+.PHONY: core-pnr-synth
+
+core-pnr-openroad: clone-pdk ## CPU_CORE alone: open the last run in OpenROAD
+	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS} --last-run --flow OpenInOpenROAD
+.PHONY: core-pnr-openroad
+
+core-pnr-klayout: clone-pdk ## CPU_CORE alone: open the last run in KLayout
+	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS} --last-run --flow OpenInKLayout
+.PHONY: core-pnr-klayout
+
 sim: clone-pdk defines ## Run RTL simulation with cocotb
 	cd cocotb; PDK_ROOT=${PDK_ROOT} PDK=${PDK} SLOT=${SLOT} PAD=${PAD} SCL=${SCL} SRAM=${SRAM} python3 chip_top_tb.py
 .PHONY: sim
