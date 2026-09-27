@@ -37,11 +37,20 @@ VERILOG_FILES:
 USE_SLANG: true
 SLANG_ARGUMENTS: ["--allow-use-before-declare"]
 
-# Clock: the same 25 MHz as the chip (librelane/config.yaml). The default
-# SDC of LibreLane is used: every input except clk and every output gets
-# IO_DELAY_CONSTRAINT (20%) of the period.
+# Clock: 10 MHz for the trial. At 40 ns (25 MHz, the chip's clock) the
+# worst setup slack after CTS was about -52 ns and the post-CTS timing
+# repair ran for a very long time. The default SDC of LibreLane is used:
+# every input except clk and every output gets IO_DELAY_CONSTRAINT (20%)
+# of the period.
 CLOCK_PORT: clk
-CLOCK_PERIOD: 40
+CLOCK_PERIOD: 100
+
+# Trial to look at placement, routing and congestion first: skip the
+# timing repair after CTS (OpenROAD.ResizerTimingPostCTS, setup and hold).
+# Design repair (slew, capacitance, fanout) after placement and global
+# routing still runs. Timing violations remain and are reported by the
+# checkers at the end of the flow. Remove this to close timing.
+RUN_POST_CTS_RESIZER_TIMING: false
 
 # Floorplan: square, 45% core utilisation to start with (about 9.4 mm2 of
 # core for 4.23 mm2 of cells). Raise it once the flow goes through.

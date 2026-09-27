@@ -27,7 +27,8 @@ nix develop -c env -u PDK -u PDK_ROOT -u LD_LIBRARY_PATH make core-pnr-klayout  
 | トップ | `cpu_core_wrap` | CPU_CORE の検証用出力（`trace_*` 169 bit、`trap_*` 136 bit）をつながず、信号ピンを 745 → **440** 本にする。フラット化で、それらを駆動するだけのロジックも消える |
 | 読み込み | `USE_SLANG: true`、`SLANG_ARGUMENTS: ["--allow-use-before-declare"]` | CORE_FPU.sv が `prod_sign` を宣言前に使っている（565 行、宣言は 571 行） |
 | 階層 | 既定（`SYNTH_HIERARCHY_MODE: flatten`） | |
-| クロック | `clk`、40 ns（25 MHz） | チップ側（`librelane/config.yaml`）と同じ |
+| クロック | `clk`、**100 ns（10 MHz）** | 試行用。最初はチップ側（`librelane/config.yaml`）と同じ 40 ns（25 MHz）にしていたが、ローカルでの実行で CTS 後の WNS が約 −52 ns になり、CTS 後のタイミング修正がなかなか終わらなかったため緩めた |
+| CTS 後のタイミング修正 | `RUN_POST_CTS_RESIZER_TIMING: false` | まず配置、配線、混雑の様子を見るため、`OpenROAD.ResizerTimingPostCTS`（setup/hold の修正）を飛ばす。配置後と大域配線後の design repair（slew、容量、ファンアウト）は実行する。タイミング違反は残り、フローの最後のチェッカが報告する。タイミングを詰めるときはこの行を消す |
 | SDC | LibreLane の既定 | `clk` 以外の全入力と全出力に周期の 20%（`IO_DELAY_CONSTRAINT`）の遅延 |
 | フロアプラン | `FP_SIZING: relative`、`FP_CORE_UTIL: 45`、`FP_ASPECT_RATIO: 1` | 最初は余裕を持たせる。通ったら上げる |
 | 配線 | `GRT_ALLOW_CONGESTION: true` | FF だけの表（RF/FRF、BTB、TLB）が混みやすいので、混雑しても大域配線を最後まで進めて混雑箇所を出す |
@@ -140,7 +141,7 @@ RTL か合成の設定（`core_pnr/config.yaml` の合成関係）を変えた�
    合成だけでクラウドでは 40 分かかったので、配置、CTS、配線まで含めると数時間以上かかる見込み。
    CLAUDE.md のとおり、クラウドではなくローカルで流すほうがよい。
 2. 見るべき点:
-   - 配置後と CTS 後の STA（`*-openroad-stamidpnr*`）で、40 ns に対する reg-to-reg の最悪パス。
+   - 配置後と CTS 後の STA（`*-openroad-stamidpnr*`）で、reg-to-reg の最悪パス（40 ns では WNS 約 −52 ns、つまり最悪パスは約 92 ns だった）。
      FPU（倍精度 FMA）と MDU（32x32 乗算器）が候補。
    - 大域配線の混雑（`*-openroad-globalrouting*` の congestion レポート）。RF/FRF、BTB、TLB の FF の塊のまわり。
    - `rst_n` のバッファツリー（リカバリ/リムーバル）。
