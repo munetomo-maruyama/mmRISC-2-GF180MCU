@@ -77,9 +77,43 @@ tt コーナーで setup の最悪スラックが −1383 ns（reg-to-reg では
 配置後の `repair_design`（バッファ挿入とサイズ変更）とクロックツリー合成のあとで改めて評価する必要がある。
 hold 違反は 0。
 
+## クラウドの結果をローカルで見る・続きを流す
+
+クラウドの run ディレクトリ（`core_pnr/runs/`）は git に入らず、コンテナが消えると失われる。
+また LibreLane の状態ファイル（`state_*.json`）は絶対パスを持つので、run を別のマシンにコピーしてもそのままでは再開できない。
+そこで、クラウドの run から必要なものだけを束ねたバンドル（`core_pnr_trial_<日付>.tar.gz`、約 30 MB）を作って持ち帰る。
+
+| ディレクトリ | 中身 |
+|---|---|
+| `synth/` | 合成後のネットリスト、JSON ヘッダ、`stat.rpt`、Yosys のログ、状態のメトリクス |
+| `floorplan/` | フロアプランの ODB / DEF / SDC とログ |
+| `sta_prepnr/` | 配置前 STA（バッファ挿入前なのでスラックはまだ意味がない） |
+| `lint/`、`run/` | Verilator のログ、`flow.log`、`warning.log`、`resolved.json`、メトリクス |
+
+見る（リポジトリのルートで、`nix develop` の中）:
+
+```sh
+tar xzf core_pnr_trial_2026-09-26.tar.gz
+openroad -gui          # Tcl コンソールで: read_db core_pnr_trial_2026-09-26/floorplan/cpu_core_wrap.odb
+```
+
+ODB は LEF 情報を含んでいるので、それだけで開ける。
+
+続きを流す（合成を飛ばして P&R から）:
+
+```sh
+nix develop -c env -u PDK -u PDK_ROOT -u LD_LIBRARY_PATH \
+    make core-pnr-from-synth SYNTH_DIR=core_pnr_trial_2026-09-26/synth
+```
+
+`core_pnr/from_synth.py` がバンドル内のネットリストと JSON ヘッダの絶対パスで初期状態（`core_pnr/state_from_synth.json`）を作り、
+`librelane ... -i <状態> --from OpenROAD.CheckSDCFiles` で合成の次から始める。
+クラウドで試したところ、フロアプランまで 21 秒で進み、同じダイ（3077.68 x 3095.60 um）になった。
+RTL か合成の設定（`core_pnr/config.yaml` の合成関係）を変えたら、このネットリストは使えないので `make core-pnr` で最初から流す。
+
 ## 次にやること
 
-1. **全工程をローカルで流す**（`make core-pnr`）。
+1. **全工程をローカルで流す**（`make core-pnr`、または合成を飛ばして `make core-pnr-from-synth`）。
    合成だけでクラウドでは 40 分かかったので、配置、CTS、配線まで含めると数時間以上かかる見込み。
    CLAUDE.md のとおり、クラウドではなくローカルで流すほうがよい。
 2. 見るべき点:

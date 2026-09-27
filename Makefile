@@ -135,6 +135,15 @@ core-pnr-synth: clone-pdk ## CPU_CORE alone: synthesis and pre-PnR STA only
 	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS} --to OpenROAD.STAPrePNR
 .PHONY: core-pnr-synth
 
+# Resume P&R from a synthesis result (skips the ~40 min Yosys run), e.g. the
+# bundle made in a cloud session: make core-pnr-from-synth SYNTH_DIR=<dir>
+SYNTH_DIR ?=
+core-pnr-from-synth: clone-pdk ## CPU_CORE alone: P&R from the netlist in SYNTH_DIR (no synthesis)
+	@test -n "$(SYNTH_DIR)" || { echo "SYNTH_DIR is not set"; exit 1; }
+	python3 core_pnr/from_synth.py $(SYNTH_DIR) core_pnr/state_from_synth.json
+	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS} -i core_pnr/state_from_synth.json --from OpenROAD.CheckSDCFiles
+.PHONY: core-pnr-from-synth
+
 core-pnr-openroad: clone-pdk ## CPU_CORE alone: open the last run in OpenROAD
 	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS} --last-run --flow OpenInOpenROAD
 .PHONY: core-pnr-openroad
