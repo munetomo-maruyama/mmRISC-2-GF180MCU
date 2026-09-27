@@ -90,20 +90,43 @@ hold 違反は 0。
 | `sta_prepnr/` | 配置前 STA（バッファ挿入前なのでスラックはまだ意味がない） |
 | `lint/`、`run/` | Verilator のログ、`flow.log`、`warning.log`、`resolved.json`、メトリクス |
 
-見る（リポジトリのルートで、`nix develop` の中）:
+バンドルはリポジトリの外に展開する（`core_pnr/runs/` の中に置くと `--last-run` が最新の run と取り違える）。
+以下では、リポジトリを `~/RISCV/mmRISC-2-GF180MCU`、バンドルの展開先を `$BUNDLE` とする。
 
 ```sh
-tar xzf core_pnr_trial_2026-09-26.tar.gz
-openroad -gui          # Tcl コンソールで: read_db core_pnr_trial_2026-09-26/floorplan/cpu_core_wrap.odb
+cd ~/RISCV
+tar xzf core_pnr_trial_2026-09-26.tar.gz          # 展開後にディレクトリ名を変えてもよい
+BUNDLE=$HOME/RISCV/core_pnr_trial_2026-09-26      # 展開先の絶対パス
+```
+
+**`nix develop` はリポジトリのルートで実行するか、リポジトリのパスを渡す。**
+`nix develop` は今いるディレクトリから上にたどって `flake.nix` を探すので、バンドルのディレクトリで実行すると
+`error: could not find a flake.nix file` になる。
+
+見る:
+
+```sh
+# (a) リポジトリのルートで
+cd ~/RISCV/mmRISC-2-GF180MCU
+nix develop -c env -u PDK -u PDK_ROOT -u LD_LIBRARY_PATH openroad -gui
+#     OpenROAD の Tcl コンソールで:  read_db <展開先の絶対パス>/floorplan/cpu_core_wrap.odb
+
+# (b) どこからでも: flake の場所を渡し、起動時に読み込むスクリプトも渡す
+echo "read_db $BUNDLE/floorplan/cpu_core_wrap.odb" > /tmp/open_fp.tcl
+nix develop ~/RISCV/mmRISC-2-GF180MCU -c env -u PDK -u PDK_ROOT -u LD_LIBRARY_PATH \
+    openroad -gui /tmp/open_fp.tcl
 ```
 
 ODB は LEF 情報を含んでいるので、それだけで開ける。
+Tcl コンソールでは `$BUNDLE` は展開されないので、絶対パスをそのまま書く。
 
-続きを流す（合成を飛ばして P&R から）:
+続きを流す（合成を飛ばして P&R から）。Makefile を使うので、リポジトリのルートで実行する。
+`SYNTH_DIR` にはバンドルの `synth` の絶対パスを渡す:
 
 ```sh
+cd ~/RISCV/mmRISC-2-GF180MCU
 nix develop -c env -u PDK -u PDK_ROOT -u LD_LIBRARY_PATH \
-    make core-pnr-from-synth SYNTH_DIR=core_pnr_trial_2026-09-26/synth
+    make core-pnr-from-synth SYNTH_DIR=$BUNDLE/synth
 ```
 
 `core_pnr/from_synth.py` がバンドル内のネットリストと JSON ヘッダの絶対パスで初期状態（`core_pnr/state_from_synth.json`）を作り、
