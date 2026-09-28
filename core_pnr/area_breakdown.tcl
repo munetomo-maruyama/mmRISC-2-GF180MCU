@@ -4,7 +4,7 @@
 #   source core_pnr/area_breakdown.tcl
 #
 # Kinds: tap (filltie), endcap, fill (fill_*/fillcap_*, not counted in the
-# utilisation), antenna, clock (clkbuf/clkinv, mostly CTS), buffer
+# utilisation), antenna, clock (clkbuf/clkinv: CTS, and ABC maps inverters to clkinv too), buffer
 # (buf/dly/inv, synthesis + repair_design), ff (dff/lat/icg), logic (the rest).
 
 set block [ord::get_db_block]
