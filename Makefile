@@ -122,6 +122,36 @@ librelane-padring: clone-pdk defines ## Only create the padring
 	python3 scripts/padring.py ${LIBRELANE_CONFIGS} ${LIBRELANE_OPTS}
 .PHONY: librelane-padring
 
+# Layout trial of CPU_CORE alone (no caches, no pad ring), core_pnr/config.yaml.
+# Runs go to core_pnr/runs/.
+CORE_PNR_CONFIG = core_pnr/config.yaml
+CORE_PNR_OPTS = --pdk ${PDK} --pdk-root ${PDK_ROOT} --manual-pdk --scl ${SCL}
+
+core-pnr: clone-pdk ## CPU_CORE alone: full LibreLane flow (synthesis, PnR, verification)
+	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS}
+.PHONY: core-pnr
+
+core-pnr-synth: clone-pdk ## CPU_CORE alone: synthesis and pre-PnR STA only
+	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS} --to OpenROAD.STAPrePNR
+.PHONY: core-pnr-synth
+
+# Resume P&R from a synthesis result (skips the ~40 min Yosys run), e.g. the
+# bundle made in a cloud session: make core-pnr-from-synth SYNTH_DIR=<dir>
+SYNTH_DIR ?=
+core-pnr-from-synth: clone-pdk ## CPU_CORE alone: P&R from the netlist in SYNTH_DIR (no synthesis)
+	@test -n "$(SYNTH_DIR)" || { echo "SYNTH_DIR is not set"; exit 1; }
+	python3 core_pnr/from_synth.py $(SYNTH_DIR) core_pnr/state_from_synth.json
+	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS} -i core_pnr/state_from_synth.json --from OpenROAD.CheckSDCFiles
+.PHONY: core-pnr-from-synth
+
+core-pnr-openroad: clone-pdk ## CPU_CORE alone: open the last run in OpenROAD
+	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS} --last-run --flow OpenInOpenROAD
+.PHONY: core-pnr-openroad
+
+core-pnr-klayout: clone-pdk ## CPU_CORE alone: open the last run in KLayout
+	librelane ${CORE_PNR_CONFIG} ${CORE_PNR_OPTS} --last-run --flow OpenInKLayout
+.PHONY: core-pnr-klayout
+
 sim: clone-pdk defines ## Run RTL simulation with cocotb
 	cd cocotb; PDK_ROOT=${PDK_ROOT} PDK=${PDK} SLOT=${SLOT} PAD=${PAD} SCL=${SCL} SRAM=${SRAM} python3 chip_top_tb.py
 .PHONY: sim

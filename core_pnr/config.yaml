@@ -1,0 +1,74 @@
+# Layout trial of mmRISC-2 CPU_CORE alone (no caches, no pad ring).
+#
+# CPU_CORE with the RTL default parameters (BTB 64, ITLB/DTLB 8, PMP 8,
+# PQ 16) behind cpu_core_wrap, which leaves the verification trace outputs
+# unconnected. Synthesis-only estimate (core_synth, tt_025C_5v00):
+# 4.23 mm2 of standard cells, 150k cells, 21k flip-flops
+# (docs/area-estimate.md). Run with `make core-pnr` from the repository root.
+
+meta:
+  version: 3
+  flow: Classic
+
+DESIGN_NAME: cpu_core_wrap
+
+VERILOG_FILES:
+- dir::cpu_core_wrap.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CORE_BTB/CORE_BTB.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CORE_IFU/CORE_IFU.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CORE_DECOMP/CORE_DECOMP.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CORE_DEC/CORE_DEC.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CORE_RF/CORE_RF.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CORE_FRF/CORE_FRF.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CORE_EXU/CORE_EXU.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CORE_MDU/CORE_MDU.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CORE_CSR/CORE_CSR.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CORE_LSU/CORE_LSU.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_CORE/CPU_CORE/CPU_CORE.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_FPU/FPU_ROUND/FPU_ROUND.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_FPU/CORE_FPU/CORE_FPU.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_MMU/MMU_TLB/MMU_TLB.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_MMU/MMU_PMP/MMU_PMP.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_MMU/MMU_PTW/MMU_PTW.sv
+- dir::../mmRISC-2/RTL/CPU/CPU_MMU/CORE_MMU/CORE_MMU.sv
+
+# Slang reads the SystemVerilog. --allow-use-before-declare: CORE_FPU.sv
+# uses prod_sign (line 565) before its declaration (line 571).
+USE_SLANG: true
+SLANG_ARGUMENTS: ["--allow-use-before-declare"]
+
+# Clock: 10 MHz for the trial. At 40 ns (25 MHz, the chip's clock) the
+# worst setup slack after CTS was about -52 ns and the post-CTS timing
+# repair ran for a very long time. The default SDC of LibreLane is used:
+# every input except clk and every output gets IO_DELAY_CONSTRAINT (20%)
+# of the period.
+CLOCK_PORT: clk
+CLOCK_PERIOD: 100
+
+# Trial to look at placement, routing and congestion first: skip the
+# timing repair after CTS (OpenROAD.ResizerTimingPostCTS, setup and hold).
+# Design repair (slew, capacitance, fanout) after placement and global
+# routing still runs. Timing violations remain and are reported by the
+# checkers at the end of the flow. Remove this to close timing.
+RUN_POST_CTS_RESIZER_TIMING: false
+
+# Floorplan: square, 45% core utilisation to start with (about 9.4 mm2 of
+# core for 4.23 mm2 of cells). Raise it once the flow goes through.
+FP_SIZING: relative
+FP_CORE_UTIL: 45
+FP_ASPECT_RATIO: 1
+
+# All flip-flops, no macros: the register files, the BTB and the TLBs make
+# dense, highly connected regions. Let global routing finish on congestion
+# so that the report shows where it is.
+GRT_ALLOW_CONGESTION: true
+
+# Fix antenna violations after detailed routing (as the chip config does)
+DRT_ANTENNA_REPAIR_ITERS: 10
+DRT_ANTENNA_REPAIR_MARGIN: 10 # %
+
+# Power / ground nets
+VDD_NETS:
+- VDD
+GND_NETS:
+- VSS
